@@ -28,7 +28,7 @@ class OracleOfBacon
   end
 
   def initialize(api_key='')
-    @api_key = '38b99ce9ec87'
+    @api_key = api_key
     @from = 'Kevin Bacon'
     @to = 'Kevin Bacon'
   end
@@ -42,16 +42,22 @@ class OracleOfBacon
       Net::ProtocolError => e
       # convert all of these into a generic OracleOfBacon::NetworkError,
       #  but keep the original error message
-      # your code here
+      
+      raise OracleOfBacon::NetworkError
     end
-    # your code here: create the OracleOfBacon::Response object
+    OracleOfBacon::Response.new(xml)
+    
   end
 
   def make_uri_from_arguments
     # your code here: set the @uri attribute to properly-escaped URI
     #   constructed from the @from, @to, @api_key arguments
-  end
-      
+    @a = CGI.escape("#{@from}")
+    @b = CGI.escape("#{@to}")
+    @p = CGI.escape("#{@api_key}")
+    @uri = "http://oracleofbacon.org/cgi-bin/xml?p=#{@p}&a=#{@a}&b=#{@b}"
+
+  end    
   class Response
     attr_reader :type, :data
     # create a Response object from a string of XML markup.
@@ -63,21 +69,20 @@ class OracleOfBacon
     private
 
     def parse_response
+      @data = []
       if ! @doc.xpath('/error').empty?
         parse_error_response
-      # your code here: 'elsif' clauses to handle other responses
-      # for responses not matching the 3 basic types, the Response
-      # object should have type 'unknown' and data 'unknown response'   
       elsif ! @doc.xpath('//actor').empty?
-        @type = :graph
-        @data = @doc.xpath('/link.').to_a
-          
+        @type = :graph        
+        movies = @doc.xpath('//movie').map {|movie| movie.text}
+        actors = @doc.xpath('//actor').map {|actor| actor.text}
+        @data = actors.zip(movies).flatten.compact
       elsif ! @doc.xpath('//match').empty?
         @type = :spellcheck
-        @data = @doc.xpath('//match').to_s
+        @data = @doc.xpath('//match').map {|movie| movie.text}
       else
         @type = :unknown
-                                          
+        @data = '/unknown/i'                                          
       end
     end
     def parse_error_response
